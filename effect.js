@@ -233,7 +233,7 @@ class SquareEffect {
         }
         const now = performance.now();
         const t = Math.min(1, (now - this.startTime) / this.config.duration);
-        const scale = 1 + t;
+        const scale = 1.5 + t;
         const alpha = 1 - t;
         this.#drawSquare(this.square, scale, alpha);
         if (t >= 1) {
@@ -243,8 +243,174 @@ class SquareEffect {
         this.animationId = requestAnimationFrame(() => this.#animate());
     }
 }
+// 整体背景色渐变
+class FadeEffect {
+    constructor(ctx, layout) {
+        this.ctx = ctx;
+        this.layout = layout;
+        this.animationId = null;
+        this.backgroundRenderer = null;
+        this.config = {
+            duration: 4000, // 3秒一个周期
+            colors: [
+                { r: 255, g: 0,   b: 0   }, // 红
+                { r: 255, g: 165, b: 0   }, // 橙
+                { r: 255, g: 255, b: 0   }, // 黄
+                { r: 0,   g: 255, b: 0   }, // 绿
+                { r: 0,   g: 255, b: 255 }, // 青
+                { r: 0,   g: 0,   b: 255 }, // 蓝
+                { r: 128, g: 0,   b: 128 }  // 紫
+            ]
+        };
+        this.startTime = 0;
+    }
+
+    setBackgroundRenderer(renderer) {
+        this.backgroundRenderer = renderer;
+    }
+
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.startTime = performance.now();
+        this.#animate();
+    }
+
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+    }
+
+    #lerpColor(c1, c2, t) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * t),
+            g: Math.round(c1.g + (c2.g - c1.g) * t),
+            b: Math.round(c1.b + (c2.b - c1.b) * t)
+        };
+    }
+
+    #animate() {
+        const now = performance.now();
+        const elapsed = (now - this.startTime) % this.config.duration;
+        const t = elapsed / this.config.duration; // 0~1
+        const segment = 1 / (this.config.colors.length - 1);
+        const index = Math.floor(t / segment);
+        const localT = (t % segment) / segment;
+
+        const c1 = this.config.colors[index];
+        const c2 = this.config.colors[(index + 1) % this.config.colors.length];
+        const color = this.#lerpColor(c1, c2, localT);
+        const rgbColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
+
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx, rgbColor);
+        } else {
+             // 填充整体背景色
+            this.ctx.fillStyle = rgbColor;
+            this.ctx.fillRect(0, 0, this.layout.canvasSize, this.layout.canvasSize);
+        }
+
+        this.animationId = requestAnimationFrame(() => this.#animate());
+    }
+}
+// 滚动渐变背景
+class ScrollFadeEffect {
+    constructor(ctx, layout) {
+        this.ctx = ctx; // 获取画布
+        this.layout = layout;   // 传递网格渲染器
+        this.animationId = null;    // 初始化动画ID
+        this.backgroundRenderer = null;
+        this.config = {
+            speed: 1, // 每帧向上移动的像素数
+            bandHeight: Math.floor(layout.canvasSize / 3), // 颜色带高度≈1/3画布边长
+            colors: [
+                { r: 255, g: 0,   b: 0   }, // 红
+                { r: 255, g: 165, b: 0   }, // 橙
+                { r: 255, g: 255, b: 0   }, // 黄
+                { r: 0,   g: 255, b: 0   }, // 绿
+                { r: 0,   g: 255, b: 255 }, // 青
+                { r: 0,   g: 0,   b: 255 }, // 蓝
+                { r: 128, g: 0,   b: 128 }  // 紫
+            ]
+        };
+        this.offset = 0; // 当前垂直偏移
+    }
+
+    setBackgroundRenderer(renderer) {
+        this.backgroundRenderer = renderer;
+    }
+
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.offset = 0;
+        this.#animate();
+    }
+
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+    }
+
+    #lerpColor(c1, c2, t) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * t),
+            g: Math.round(c1.g + (c2.g - c1.g) * t),
+            b: Math.round(c1.b + (c2.b - c1.b) * t)
+        };
+    }
+
+    #getColorAt(y) {
+        const totalHeight = this.config.bandHeight;
+        const segmentHeight = totalHeight / (this.config.colors.length - 1);
+        const t = ((y % totalHeight) + totalHeight) % totalHeight / totalHeight; // 归一化到0~1
+        const index = Math.floor(t * (this.config.colors.length - 1));
+        const localT = (t * (this.config.colors.length - 1)) % 1;
+        const c1 = this.config.colors[index];
+        const c2 = this.config.colors[(index + 1) % this.config.colors.length];
+        const color = this.#lerpColor(c1, c2, localT);
+        return `rgb(${color.r}, ${color.g}, ${color.b})`;
+    }
+
+    #animate() {
+        const { canvasSize } = this.layout;
+        const bandHeight = this.config.bandHeight;
+
+        // 先画背景（若存在）
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+
+        // 绘制循环滚动的彩色带
+        for (let y = 0; y < canvasSize; y++) {
+            const colorY = y + this.offset;
+            this.ctx.fillStyle = this.#getColorAt(colorY);
+            this.ctx.fillRect(0, y, canvasSize, 1);
+        }
+
+        // 更新偏移，实现向上滚动
+        this.offset = (this.offset + this.config.speed - bandHeight) % bandHeight;
+
+        this.animationId = requestAnimationFrame(() => this.#animate());
+    }
+}
+
 
 export {
     RainEffect,
-    SquareEffect
+    SquareEffect,
+    FadeEffect,
+    ScrollFadeEffect
 }

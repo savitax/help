@@ -1,4 +1,4 @@
-import { RainEffect, SquareEffect } from './effect.js';
+import { RainEffect, SquareEffect, FadeEffect, ScrollFadeEffect } from './effect.js';
 import GridRenderer from './grid.js';
 
 // 网格基础配置
@@ -28,8 +28,16 @@ applyDpr();
 const grid = new GridRenderer(gridConfig);
 const rainEffect = new RainEffect(ctx, grid);
 rainEffect.setBackgroundRenderer(grid);
+
 const squareEffect = new SquareEffect(ctx, grid, ["#ff6b6b", "#ffd93d", "#6bcB77", "#4a9eff"]);
 squareEffect.setBackgroundRenderer(grid);
+
+const fadeEffect = new FadeEffect(ctx, grid);
+fadeEffect.setBackgroundRenderer(grid);
+
+const scrollFadeEffect = new ScrollFadeEffect(ctx, grid);
+scrollFadeEffect.setBackgroundRenderer(grid);
+
 let currentEffect = null;
 
 gridToggle.addEventListener("click", () => {
@@ -55,6 +63,16 @@ select.addEventListener("change", (e) => {
             if (currentEffect) currentEffect.stop();
             currentEffect = squareEffect;
             squareEffect.start();
+            break;
+        case "Fade":
+            if (currentEffect) currentEffect.stop();
+            currentEffect = fadeEffect;
+            fadeEffect.start();
+            break;
+        case "Scrolling Fade":
+            if (currentEffect) currentEffect.stop();
+            currentEffect = scrollFadeEffect;
+            scrollFadeEffect.start();
             break;
     }
 });

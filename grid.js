@@ -17,9 +17,9 @@ export default class GridRenderer {
         this.visible = !!visible;
     }
 
-    draw(ctx) {
+    draw(ctx, bgColor = this.bgColor) {
         ctx.clearRect(0, 0, this.canvasSize * window.devicePixelRatio, this.canvasSize * window.devicePixelRatio);
-        ctx.fillStyle = this.bgColor;
+        ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
 
         if (!this.visible) return;
