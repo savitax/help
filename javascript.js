@@ -1,4 +1,4 @@
-import { RainEffect, SquareEffect, FadeEffect, ScrollFadeEffect } from './effect.js';
+import { RainEffect, SquareEffect, FadeEffect, ScrollFadeEffect, DiagonallyFadeEffect, SymmetricFadeEffect, CircleFadeEffect } from './effect.js';
 import GridRenderer from './grid.js';
 
 // 网格基础配置
@@ -37,6 +37,12 @@ fadeEffect.setBackgroundRenderer(grid);
 
 const scrollFadeEffect = new ScrollFadeEffect(ctx, grid);
 scrollFadeEffect.setBackgroundRenderer(grid);
+const diagonallyFadeEffect = new DiagonallyFadeEffect(ctx, grid);
+diagonallyFadeEffect.setBackgroundRenderer(grid);
+const symmetricFadeEffect = new SymmetricFadeEffect(ctx, grid);
+symmetricFadeEffect.setBackgroundRenderer(grid);
+const circleFadeEffect = new CircleFadeEffect(ctx, grid);
+circleFadeEffect.setBackgroundRenderer(grid);
 
 let currentEffect = null;
 
@@ -73,6 +79,21 @@ select.addEventListener("change", (e) => {
             if (currentEffect) currentEffect.stop();
             currentEffect = scrollFadeEffect;
             scrollFadeEffect.start();
+            break;
+        case "Diagonally Fade":
+            if (currentEffect) currentEffect.stop();
+            currentEffect = diagonallyFadeEffect;
+            diagonallyFadeEffect.start();
+            break;
+        case "Symmetric Fade":
+            if (currentEffect) currentEffect.stop();
+            currentEffect = symmetricFadeEffect;
+            symmetricFadeEffect.start();
+            break;
+        case "Circle Fade":
+            if (currentEffect) currentEffect.stop();
+            currentEffect = circleFadeEffect;
+            circleFadeEffect.start();
             break;
     }
 });

@@ -120,7 +120,7 @@ class SquareEffect {
         this.backgroundRenderer = null;
         this.palette = Array.isArray(palette) ? palette.slice() : [];
         this.config = {
-            duration: 500,
+            duration: 2000,
             initialSizeCells: 5
         };
         this.square = null;
@@ -328,7 +328,7 @@ class ScrollFadeEffect {
         this.backgroundRenderer = null;
         this.config = {
             speed: 1, // 每帧向上移动的像素数
-            bandHeight: Math.floor(layout.canvasSize / 3), // 颜色带高度≈1/3画布边长
+            bandHeight: Math.floor(layout.canvasSize), // 颜色带高度≈1/3画布边长
             colors: [
                 { r: 255, g: 0,   b: 0   }, // 红
                 { r: 255, g: 165, b: 0   }, // 橙
@@ -374,43 +374,333 @@ class ScrollFadeEffect {
 
     #getColorAt(y) {
         const totalHeight = this.config.bandHeight;
-        const segmentHeight = totalHeight / (this.config.colors.length - 1);
-        const t = ((y % totalHeight) + totalHeight) % totalHeight / totalHeight; // 归一化到0~1
-        const index = Math.floor(t * (this.config.colors.length - 1));
-        const localT = (t * (this.config.colors.length - 1)) % 1;
+        // 归一化位置，处理循环
+        const t = ((y % totalHeight) + totalHeight) % totalHeight / totalHeight;
+        
+        // 计算在颜色数组中的位置
+        const colorCount = this.config.colors.length;
+        const index = Math.floor(t * colorCount);
+        const nextIndex = (index + 1) % colorCount;
+        const localT = (t * colorCount) % 1;
+
         const c1 = this.config.colors[index];
-        const c2 = this.config.colors[(index + 1) % this.config.colors.length];
+        const c2 = this.config.colors[nextIndex];
         const color = this.#lerpColor(c1, c2, localT);
         return `rgb(${color.r}, ${color.g}, ${color.b})`;
     }
 
     #animate() {
-        const { canvasSize } = this.layout;
+        const { canvasSize, rows } = this.layout;
+        const cellSize = this.layout.cellSize || (canvasSize / this.layout.cols);
         const bandHeight = this.config.bandHeight;
 
-        // 先画背景（若存在）
-        if (this.backgroundRenderer) {
-            this.backgroundRenderer.draw(this.ctx);
+        // 清空画布（因为我们现在传 null 给 backgroundRenderer）
+        this.ctx.clearRect(0, 0, canvasSize * window.devicePixelRatio, canvasSize * window.devicePixelRatio);
+
+        // 逐行绘制
+        for (let r = 0; r < rows; r++) {
+            // 计算当前行的虚拟 Y 坐标（包含滚动偏移）
+            // 我们取行的中心点或者上边缘来计算颜色
+            const rowY = r * cellSize;
+            // offset 向上滚动，所以颜色坐标相当于向下移动，即减去 offset
+            // 或者：我们希望看到下面的东西移上来，即 offset 增加时，内容向上移
+            // 如果 gradient 是不动的，视口向下移...
+            // 简单点：根据之前的逻辑，offset 是向上滚动的距离
+            // 所以采样坐标应该是 y + offset
+            const sampleY = rowY + this.offset;
+            
+            const color = this.#getColorAt(sampleY);
+            
+            this.ctx.fillStyle = color;
+            // 绘制整行矩形
+            this.ctx.fillRect(0, rowY, canvasSize, cellSize);
         }
 
-        // 绘制循环滚动的彩色带
-        for (let y = 0; y < canvasSize; y++) {
-            const colorY = y + this.offset;
-            this.ctx.fillStyle = this.#getColorAt(colorY);
-            this.ctx.fillRect(0, y, canvasSize, 1);
+        if (this.backgroundRenderer) {
+            // 传递 null，只绘制网格线，不清除背景
+            this.backgroundRenderer.draw(this.ctx, null);
         }
 
         // 更新偏移，实现向上滚动
-        this.offset = (this.offset + this.config.speed - bandHeight) % bandHeight;
+        this.offset = (this.offset + this.config.speed) % bandHeight;
 
         this.animationId = requestAnimationFrame(() => this.#animate());
     }
 }
+// 斜向滚动渐变
+class DiagonallyFadeEffect {
+    constructor(ctx, layout) {
+        this.ctx = ctx;
+        this.layout = layout;
+        this.animationId = null;
+        this.backgroundRenderer = null;
+        this.config = {
+            speed: 1,
+            bandHeight: Math.floor(layout.canvasSize),
+            colors: [
+                { r: 255, g: 0, b: 0 },
+                { r: 255, g: 165, b: 0 },
+                { r: 255, g: 255, b: 0 },
+                { r: 0, g: 255, b: 0 },
+                { r: 0, g: 255, b: 255 },
+                { r: 0, g: 0, b: 255 },
+                { r: 128, g: 0, b: 128 }
+            ]
+        };
+        this.offset = 0;
+    }
 
+    setBackgroundRenderer(renderer) {
+        this.backgroundRenderer = renderer;
+    }
 
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.offset = 0;
+        this.#animate();
+    }
+
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+    }
+
+    #lerpColor(c1, c2, t) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * t),
+            g: Math.round(c1.g + (c2.g - c1.g) * t),
+            b: Math.round(c1.b + (c2.b - c1.b) * t)
+        };
+    }
+
+    #getColorAt(s) {
+        const total = this.config.bandHeight;
+        const t = ((s % total) + total) % total / total;
+        const count = this.config.colors.length;
+        const idx = Math.floor(t * count);
+        const next = (idx + 1) % count;
+        const localT = (t * count) % 1;
+        const c1 = this.config.colors[idx];
+        const c2 = this.config.colors[next];
+        const c = this.#lerpColor(c1, c2, localT);
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    }
+
+    #animate() {
+        const { canvasSize, rows, cols } = this.layout;
+        const cellSize = this.layout.cellSize || (canvasSize / this.layout.cols);
+
+        this.ctx.clearRect(0, 0, canvasSize * window.devicePixelRatio, canvasSize * window.devicePixelRatio);
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = c * cellSize;
+                const y = r * cellSize;
+                const s = x + y + this.offset;
+                this.ctx.fillStyle = this.#getColorAt(s);
+                this.ctx.fillRect(x, y, cellSize, cellSize);
+            }
+        }
+
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx, null);
+        }
+
+        this.offset = (this.offset + this.config.speed) % this.config.bandHeight;
+        this.animationId = requestAnimationFrame(() => this.#animate());
+    }
+}
+
+class SymmetricFadeEffect {
+    constructor(ctx, layout) {
+        this.ctx = ctx;
+        this.layout = layout;
+        this.animationId = null;
+        this.backgroundRenderer = null;
+        this.config = {
+            speed: 1,
+            bandHeight: Math.floor(layout.canvasSize / 0.8),
+            colors: [
+                { r: 255, g: 0, b: 0 },
+                { r: 255, g: 165, b: 0 },
+                { r: 255, g: 255, b: 0 },
+                { r: 0, g: 255, b: 0 },
+                { r: 0, g: 255, b: 255 },
+                { r: 0, g: 0, b: 255 },
+                { r: 128, g: 0, b: 128 }
+            ]
+        };
+        this.offset = 0;
+    }
+
+    setBackgroundRenderer(renderer) {
+        this.backgroundRenderer = renderer;
+    }
+
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.offset = 0;
+        this.#animate();
+    }
+
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+    }
+
+    #lerpColor(c1, c2, t) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * t),
+            g: Math.round(c1.g + (c2.g - c1.g) * t),
+            b: Math.round(c1.b + (c2.b - c1.b) * t)
+        };
+    }
+
+    #getColorAt(s) {
+        const total = this.config.bandHeight;
+        const t = ((s % total) + total) % total / total;
+        const count = this.config.colors.length;
+        const idx = Math.floor(t * count);
+        const next = (idx + 1) % count;
+        const localT = (t * count) % 1;
+        const c1 = this.config.colors[idx];
+        const c2 = this.config.colors[next];
+        const c = this.#lerpColor(c1, c2, localT);
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    }
+
+    #animate() {
+        const { canvasSize, rows, cols } = this.layout;
+        const cellSize = this.layout.cellSize || (canvasSize / this.layout.cols);
+        const midCol = Math.floor(cols / 2);
+
+        this.ctx.clearRect(0, 0, canvasSize * window.devicePixelRatio, canvasSize * window.devicePixelRatio);
+
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = c * cellSize;
+                const y = r * cellSize;
+                const s = c < midCol
+                    ? c * cellSize + this.offset
+                    : (cols - 1 - c) * cellSize + this.offset;
+                this.ctx.fillStyle = this.#getColorAt(s);
+                this.ctx.fillRect(x, y, cellSize, cellSize);
+            }
+        }
+
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx, null);
+        }
+
+        this.offset = (this.offset - this.config.speed) % this.config.bandHeight;
+        this.animationId = requestAnimationFrame(() => this.#animate());
+    }
+}
+class CircleFadeEffect {
+    constructor(ctx, layout) {
+        this.ctx = ctx;
+        this.layout = layout;
+        this.animationId = null;
+        this.backgroundRenderer = null;
+        this.config = {
+            speed: 1,
+            colors: [
+                { r: 255, g: 0, b: 0 },
+                { r: 255, g: 165, b: 0 },
+                { r: 255, g: 255, b: 0 },
+                { r: 0, g: 255, b: 0 },
+                { r: 0, g: 255, b: 255 },
+                { r: 0, g: 0, b: 255 },
+                { r: 128, g: 0, b: 128 }
+            ]
+        };
+        this.offset = 0;
+        this.maxRadius = Math.floor((layout.canvasSize / 2) * Math.SQRT2);
+        this.bandHeight = this.maxRadius;
+    }
+    setBackgroundRenderer(renderer) {
+        this.backgroundRenderer = renderer;
+    }
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.offset = 0;
+        this.#animate();
+    }
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+    }
+    #lerpColor(c1, c2, t) {
+        return {
+            r: Math.round(c1.r + (c2.r - c1.r) * t),
+            g: Math.round(c1.g + (c2.g - c1.g) * t),
+            b: Math.round(c1.b + (c2.b - c1.b) * t)
+        };
+    }
+    #getColorAt(s) {
+        const total = this.bandHeight;
+        const t = ((s % total) + total) % total / total;
+        const count = this.config.colors.length;
+        const idx = Math.floor(t * count);
+        const next = (idx + 1) % count;
+        const localT = (t * count) % 1;
+        const c1 = this.config.colors[idx];
+        const c2 = this.config.colors[next];
+        const c = this.#lerpColor(c1, c2, localT);
+        return `rgb(${c.r}, ${c.g}, ${c.b})`;
+    }
+    #animate() {
+        const { canvasSize, rows, cols } = this.layout;
+        const cellSize = this.layout.cellSize || (canvasSize / this.layout.cols);
+        const cx = canvasSize / 2;
+        const cy = canvasSize / 2;
+        this.ctx.clearRect(0, 0, canvasSize * window.devicePixelRatio, canvasSize * window.devicePixelRatio);
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const x = c * cellSize + cellSize / 2;
+                const y = r * cellSize + cellSize / 2;
+                const dx = x - cx;
+                const dy = y - cy;
+                const rad = Math.sqrt(dx * dx + dy * dy);
+                const s = rad + this.offset;
+                this.ctx.fillStyle = this.#getColorAt(s);
+                this.ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+            }
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx, null);
+        }
+        this.offset = (this.offset + this.config.speed) % this.bandHeight;
+        this.animationId = requestAnimationFrame(() => this.#animate());
+    }
+}
 export {
     RainEffect,
     SquareEffect,
     FadeEffect,
-    ScrollFadeEffect
+    ScrollFadeEffect,
+    DiagonallyFadeEffect,
+    SymmetricFadeEffect,
+    CircleFadeEffect
 }

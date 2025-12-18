@@ -18,9 +18,11 @@ export default class GridRenderer {
     }
 
     draw(ctx, bgColor = this.bgColor) {
-        ctx.clearRect(0, 0, this.canvasSize * window.devicePixelRatio, this.canvasSize * window.devicePixelRatio);
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
+        if (bgColor !== null) {
+            ctx.clearRect(0, 0, this.canvasSize * window.devicePixelRatio, this.canvasSize * window.devicePixelRatio);
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
+        }
 
         if (!this.visible) return;
 
