@@ -120,7 +120,7 @@ class SquareEffect {
         this.backgroundRenderer = null;
         this.palette = Array.isArray(palette) ? palette.slice() : [];
         this.config = {
-            duration: 2000,
+            duration: 500,
             initialSizeCells: 5
         };
         this.square = null;

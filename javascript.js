@@ -1,5 +1,5 @@
 import { RainEffect, SquareEffect, FadeEffect, ScrollFadeEffect, DiagonallyFadeEffect, SymmetricFadeEffect, CircleFadeEffect } from './effect.js';
-import GridRenderer from './grid.js';
+import GridRenderer from './effect/grid.js';
 
 // 网格基础配置
 const gridConfig = {
