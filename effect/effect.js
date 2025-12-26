@@ -296,6 +296,9 @@ class FadeEffect {
     }
 
     #animate() {
+        const { canvasSize, rows, cols } = this.layout;
+        const cellSize = this.layout.cellSize || (canvasSize / cols);
+
         const now = performance.now();
         const elapsed = (now - this.startTime) % this.config.duration;
         const t = elapsed / this.config.duration; // 0~1
@@ -308,12 +311,20 @@ class FadeEffect {
         const color = this.#lerpColor(c1, c2, localT);
         const rgbColor = `rgb(${color.r}, ${color.g}, ${color.b})`;
 
+        // 1. 清空画布
+        this.ctx.clearRect(0, 0, canvasSize * window.devicePixelRatio, canvasSize * window.devicePixelRatio);
+
+        // 2. 逐像素绘制（虽然颜色一样，但为了符合“像素化”要求，我们模拟逐格绘制）
+        this.ctx.fillStyle = rgbColor;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                this.ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+            }
+        }
+
+        // 3. 绘制网格线
         if (this.backgroundRenderer) {
-            this.backgroundRenderer.draw(this.ctx, rgbColor);
-        } else {
-             // 填充整体背景色
-            this.ctx.fillStyle = rgbColor;
-            this.ctx.fillRect(0, 0, this.layout.canvasSize, this.layout.canvasSize);
+            this.backgroundRenderer.draw(this.ctx, null);
         }
 
         this.animationId = requestAnimationFrame(() => this.#animate());
@@ -695,6 +706,94 @@ class CircleFadeEffect {
         this.animationId = requestAnimationFrame(() => this.#animate());
     }
 }
+
+class PacManEffect {
+    constructor(ctx, grid) {
+        this.ctx = ctx;
+        this.grid = grid;
+        this.animationId = null;
+        this.backgroundRenderer = null;
+        this.config = {
+            color: "#0000FE",
+            radius: 6,
+            duration: 2000
+        };
+        this.startTime = 0;
+    }
+    // 后续在javascript里面通过xxxEffect.setBackgroundRenderer(grid);将GridRenderer类的实例化对象传递给this.backgroundRenderer
+    setBackgroundRenderer(renderer) {
+        this.backgroundRenderer = renderer;
+    }
+    // 动画启动器
+    start() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+        }
+        this.startTime = performance.now();
+        this.#animate();
+    }
+
+    // 动画停止器
+    stop() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
+        }
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+    }
+    #animate() {
+        const now = performance.now();
+        const elapsed = (now - this.startTime) % this.config.duration;
+        const progress = elapsed / this.config.duration;
+        const startX = -this.config.radius;
+        const endX = this.grid.cols + this.config.radius;
+        const x = startX + (endX - startX) * progress;
+        const y = Math.floor(this.grid.rows / 2);
+        // console.log("PacManEffect animate", { progress, x, y });
+        this.ctx.clearRect(0, 0, this.grid.canvasSize * window.devicePixelRatio, this.grid.canvasSize * window.devicePixelRatio);
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx);
+        }
+        this.#drawPacMan(x, y);
+        this.animationId = requestAnimationFrame(() => this.#animate());
+    }
+    #drawPacMan(x, y) {
+        const { radius, color } = this.config;
+        const { rows, cols, cellSize } = this.grid;
+        const startAngle = Math.PI * 0.25;
+        const endAngle = Math.PI * 1.75;
+        this.ctx.fillStyle = color;
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                const dx = c - x;
+                const dy = r - y;
+                const distSq = dx * dx + dy * dy;
+                if (distSq <= radius * radius) {
+                    let angle = Math.atan2(dy, dx);
+                    if (angle < 0) angle += 2 * Math.PI;
+                    if (angle >= startAngle && angle <= endAngle) {
+                        this.ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+        }
+    }
+    renderFrame() {
+        const startX = -this.config.radius;
+        const endX = this.grid.cols + this.config.radius;
+        const x = (startX + endX) / 2;
+        const y = Math.floor(this.grid.rows / 2);
+        this.ctx.clearRect(0, 0, this.grid.canvasSize * window.devicePixelRatio, this.grid.canvasSize * window.devicePixelRatio);
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.draw(this.ctx, null);
+        }
+        this.#drawPacMan(x, y);
+        console.log("PacManEffect renderFrame", { x, y });
+    }
+}
+
 export {
     RainEffect,
     SquareEffect,
@@ -702,5 +801,6 @@ export {
     ScrollFadeEffect,
     DiagonallyFadeEffect,
     SymmetricFadeEffect,
-    CircleFadeEffect
+    CircleFadeEffect,
+    PacManEffect
 }

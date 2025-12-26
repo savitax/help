@@ -1,4 +1,4 @@
-import { RainEffect, SquareEffect, FadeEffect, ScrollFadeEffect, DiagonallyFadeEffect, SymmetricFadeEffect, CircleFadeEffect } from './effect.js';
+import { RainEffect, SquareEffect, FadeEffect, ScrollFadeEffect, DiagonallyFadeEffect, SymmetricFadeEffect, CircleFadeEffect,PacManEffect } from './effect/effect.js';
 import GridRenderer from './effect/grid.js';
 
 // 网格基础配置
@@ -37,12 +37,20 @@ fadeEffect.setBackgroundRenderer(grid);
 
 const scrollFadeEffect = new ScrollFadeEffect(ctx, grid);
 scrollFadeEffect.setBackgroundRenderer(grid);
+
 const diagonallyFadeEffect = new DiagonallyFadeEffect(ctx, grid);
 diagonallyFadeEffect.setBackgroundRenderer(grid);
+
 const symmetricFadeEffect = new SymmetricFadeEffect(ctx, grid);
 symmetricFadeEffect.setBackgroundRenderer(grid);
+
 const circleFadeEffect = new CircleFadeEffect(ctx, grid);
 circleFadeEffect.setBackgroundRenderer(grid);
+
+const pacManEffect = new PacManEffect(ctx, grid);
+pacManEffect.setBackgroundRenderer(grid);
+
+
 
 let currentEffect = null;
 
@@ -63,6 +71,7 @@ select.addEventListener("change", (e) => {
         case "Falling Object":
             if (currentEffect) currentEffect.stop();
             currentEffect = rainEffect;
+            console.log(rainEffect);
             rainEffect.start();
             break;
         case "Expanding Object":
@@ -94,6 +103,12 @@ select.addEventListener("change", (e) => {
             if (currentEffect) currentEffect.stop();
             currentEffect = circleFadeEffect;
             circleFadeEffect.start();
+            break;
+        case "PacMan":
+            if (currentEffect) currentEffect.stop();
+            currentEffect = pacManEffect;
+            console.log("Switch to PacManEffect", pacManEffect);
+            pacManEffect.start();
             break;
     }
 });
