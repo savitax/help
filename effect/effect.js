@@ -752,11 +752,14 @@ class PacManEffect {
         const x = startX + (endX - startX) * progress;
         const y = Math.floor(this.grid.rows / 2);
         // console.log("PacManEffect animate", { progress, x, y });
-        this.ctx.clearRect(0, 0, this.grid.canvasSize * window.devicePixelRatio, this.grid.canvasSize * window.devicePixelRatio);
+        this.ctx.clearRect(0, 0, this.grid.canvasSize * window.devicePixelRatio, this.grid.canvasSize * window.devicePixelRatio)
         if (this.backgroundRenderer) {
-            this.backgroundRenderer.draw(this.ctx);
+            this.backgroundRenderer.drawBg(this.ctx);
         }
         this.#drawPacMan(x, y);
+        if (this.backgroundRenderer) {
+            this.backgroundRenderer.drawGrid(this.ctx);
+        }
         this.animationId = requestAnimationFrame(() => this.#animate());
     }
     #drawPacMan(x, y) {
@@ -770,7 +773,7 @@ class PacManEffect {
                 const dx = c - x;
                 const dy = r - y;
                 const distSq = dx * dx + dy * dy;
-                if (distSq <= radius * radius) {
+                if (distSq <= radius ** 2) {
                     let angle = Math.atan2(dy, dx);
                     if (angle < 0) angle += 2 * Math.PI;
                     if (angle >= startAngle && angle <= endAngle) {

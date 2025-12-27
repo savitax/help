@@ -44,4 +44,33 @@ export default class GridRenderer {
             ctx.stroke();
         }
     }
+    drawBg(ctx, bgColor = this.bgColor) {
+        if (bgColor !== null) {
+            ctx.clearRect(0, 0, this.canvasSize * window.devicePixelRatio, this.canvasSize * window.devicePixelRatio);
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, this.canvasSize, this.canvasSize);
+        }
+    }
+    drawGrid(ctx, gridColor = this.color) {
+        if (!this.visible) return;
+        if (gridColor !== null) {
+            ctx.strokeStyle = gridColor;
+            ctx.lineWidth = 1;
+            ctx.imageSmoothingEnabled = false;
+
+            for (let i = 0; i <= this.canvasSize; i += this.cellSize) {
+                ctx.beginPath();
+                ctx.moveTo(i + 0.5, 0);
+                ctx.lineTo(i + 0.5, this.canvasSize);
+                ctx.stroke();
+            }
+
+            for (let i = 0; i <= this.canvasSize; i += this.cellSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, i + 0.5);
+                ctx.lineTo(this.canvasSize, i + 0.5);
+                ctx.stroke();
+            }
+        }
+    }
 }

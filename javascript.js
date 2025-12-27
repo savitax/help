@@ -3,8 +3,8 @@ import GridRenderer from './effect/grid.js';
 
 // 网格基础配置
 const gridConfig = {
-    rows: 30,
-    cols: 30,
+    rows: 60,
+    cols: 60,
     canvasSize: 300,
     color: "#4a9eff",
     bgColor: "#0a0e21",
