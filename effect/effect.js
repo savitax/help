@@ -732,7 +732,6 @@ class PacManEffect {
         this.startTime = performance.now();
         this.#animate();
     }
-
     // 动画停止器
     stop() {
         if (this.animationId) {
